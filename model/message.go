@@ -8,10 +8,10 @@ import (
 )
 
 type Message struct {
-	ID        string
-	Body      interface{}
-	Timestamp uint
-	Attempts  uint
+	ID        string      `json:"id"`
+	Body      interface{} `json:"body"`
+	Timestamp uint        `json:"timestamp"`
+	Attempts  uint        `json:"attempts"`
 }
 
 func NewMessage(body interface{}) Message {
