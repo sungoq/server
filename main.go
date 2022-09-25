@@ -1,12 +1,20 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
+	sungoqAPI "github.com/hadihammurabi/sungoq/api"
 	sungoqService "github.com/hadihammurabi/sungoq/service"
 )
 
 func main() {
-	service, err := sungoqService.New()
-	fmt.Println(service.Topic, err)
+
+	_, err := sungoqService.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	api := sungoqAPI.New()
+	api.Start()
+
 }
