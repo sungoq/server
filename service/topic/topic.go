@@ -1,10 +1,13 @@
 package topic
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/dgraph-io/badger/v3"
+	"github.com/hadihammurabi/sungoq/model"
 )
 
 type TopicService struct {
@@ -109,6 +112,115 @@ func (service *TopicService) Delete(name string) error {
 
 	err = serviceStorage.Update(func(txn *badger.Txn) error {
 		err := txn.Delete([]byte(name))
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (service TopicService) Publish(topic string, message interface{}) (model.Message, error) {
+	storage, err := badger.Open(
+		badger.DefaultOptions(
+			fmt.Sprintf("%s/%s", service.storageLocationPrefix, topic),
+		),
+	)
+	if err != nil {
+		return model.Message{}, err
+	}
+
+	defer storage.Close()
+
+	newMessage := model.NewMessage(message)
+
+	err = storage.Update(func(txn *badger.Txn) error {
+		err := txn.Set([]byte(newMessage.ID), newMessage.ToJSON())
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return model.Message{}, err
+	}
+
+	return newMessage, nil
+}
+
+func (service TopicService) GetAllMessages(topic string) ([]model.Message, error) {
+	storage, err := badger.Open(
+		badger.DefaultOptions(
+			fmt.Sprintf("%s/%s", service.storageLocationPrefix, topic),
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	defer storage.Close()
+
+	messagesRaw := make([][]byte, 0)
+
+	err = storage.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchSize = 10
+		it := txn.NewIterator(opts)
+		defer it.Close()
+		for it.Rewind(); it.Valid(); it.Next() {
+			item := it.Item()
+			err := item.Value(func(v []byte) error {
+				messagesRaw = append(messagesRaw, v)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	messages := make(model.Messages, 0)
+
+	for _, mraw := range messagesRaw {
+		m := model.Message{}
+		if err := json.Unmarshal(mraw, &m); err != nil {
+			continue
+		}
+
+		messages = append(messages, m)
+	}
+
+	sort.Sort(messages)
+
+	return messages, nil
+}
+
+func (service TopicService) DeleteMessage(topic string, id string) error {
+	storage, err := badger.Open(
+		badger.DefaultOptions(
+			fmt.Sprintf("%s/%s", service.storageLocationPrefix, topic),
+		),
+	)
+	if err != nil {
+		return err
+	}
+
+	defer storage.Close()
+
+	err = storage.Update(func(txn *badger.Txn) error {
+		err := txn.Delete([]byte(id))
 		if err != nil {
 			return err
 		}

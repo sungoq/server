@@ -1,39 +1,36 @@
 package api
 
 import (
-	"strings"
-
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cache"
+	"github.com/gofiber/websocket/v2"
 	"github.com/hadihammurabi/sungoq/constants"
+	"github.com/hadihammurabi/sungoq/model"
 	"github.com/hadihammurabi/sungoq/service"
 )
+
+type publishing struct {
+	Topic   string
+	Message model.Message
+}
 
 type API struct {
 	app *fiber.App
 
 	service *service.Service
 	addr    string
+
+	chPublishing chan publishing
 }
 
 func New(options ...OptionFunc) (*API, error) {
 	api := &API{
-		app: fiber.New(),
+		app:          fiber.New(),
+		chPublishing: make(chan publishing),
 	}
 
 	for _, opt := range options {
 		opt(api)
 	}
-
-	api.app.Use(
-		cache.New(
-			cache.Config{
-				Next: func(c *fiber.Ctx) bool {
-					return strings.Contains(c.Route().Path, "/consume")
-				},
-			},
-		),
-	)
 
 	if api.addr == "" {
 		api.addr = ":8080"
@@ -52,7 +49,15 @@ func (api *API) Route() {
 	api.app.Delete("/topics", api.DeleteTopics)
 
 	api.app.Post("/publish", api.Publish)
-	api.app.Get("/consume", api.Consume)
+
+	api.app.Use("/consume", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			c.Locals("allowed", true)
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+	api.app.Get("/consume", websocket.New(api.Consume))
 }
 
 func (api *API) Start() {
