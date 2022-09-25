@@ -5,15 +5,18 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
+	"github.com/hadihammurabi/sungoq/constants"
+	"github.com/hadihammurabi/sungoq/service"
 )
 
 type API struct {
 	app *fiber.App
 
-	addr string
+	service *service.Service
+	addr    string
 }
 
-func New(options ...OptionFunc) *API {
+func New(options ...OptionFunc) (*API, error) {
 	api := &API{
 		app: fiber.New(),
 	}
@@ -36,19 +39,23 @@ func New(options ...OptionFunc) *API {
 		api.addr = ":8080"
 	}
 
-	return api
+	if api.service == nil {
+		return nil, constants.ErrServiceIsEmpty
+	}
+
+	return api, nil
 }
 
 func (api *API) Route() {
 	api.app.Post("/topics", api.CreateTopics)
 	api.app.Get("/topics", api.GetAllTopics)
-	api.app.Get("/topics/:id", api.GetTopicsByID)
-	api.app.Delete("/topics/:id", api.DeleteTopics)
+	api.app.Delete("/topics", api.DeleteTopics)
 
 	api.app.Post("/publish", api.Publish)
 	api.app.Get("/consume", api.Consume)
 }
 
 func (api *API) Start() {
+	api.Route()
 	api.app.Listen(api.addr)
 }
