@@ -25,6 +25,7 @@ DELETE /topics?name=notification HTTP/1.1
 ```
 
 ### Publish a Message
+```
 POST /publish HTTP/1.1
 Content-Type: application/json
 Content-Length: 44
@@ -33,3 +34,4 @@ Content-Length: 44
     "topic": "chat",
     "message": "hi"
 }
+```
