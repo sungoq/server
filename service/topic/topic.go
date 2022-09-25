@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/dgraph-io/badger/v3"
+	"github.com/hadihammurabi/sungoq/model"
 )
 
 type TopicService struct {
@@ -121,4 +122,35 @@ func (service *TopicService) Delete(name string) error {
 	}
 
 	return nil
+}
+
+func (service TopicService) Publish(topic string, message interface{}) (model.Message, error) {
+	storage, err := badger.Open(
+		badger.DefaultOptions(
+			fmt.Sprintf("%s/%s", service.storageLocationPrefix, topic),
+		),
+	)
+
+	if err != nil {
+		return model.Message{}, nil
+	}
+
+	newMessage := model.NewMessage(message)
+
+	err = storage.Update(func(txn *badger.Txn) error {
+		err := txn.Set([]byte(newMessage.ID), newMessage.ToJSON())
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return model.Message{}, err
+	}
+
+	defer storage.Close()
+
+	return newMessage, nil
 }
