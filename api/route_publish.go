@@ -21,6 +21,11 @@ func (api *API) Publish(c *fiber.Ctx) error {
 		return err
 	}
 
+	api.chPublishing <- publishing{
+		Topic:   input.Topic,
+		Message: message,
+	}
+
 	return c.JSON(fiber.Map{
 		"message": "sent",
 		"topic":   input.Topic,

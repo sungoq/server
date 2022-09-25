@@ -4,19 +4,28 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
 	"github.com/hadihammurabi/sungoq/constants"
+	"github.com/hadihammurabi/sungoq/model"
 	"github.com/hadihammurabi/sungoq/service"
 )
+
+type publishing struct {
+	Topic   string
+	Message model.Message
+}
 
 type API struct {
 	app *fiber.App
 
 	service *service.Service
 	addr    string
+
+	chPublishing chan publishing
 }
 
 func New(options ...OptionFunc) (*API, error) {
 	api := &API{
-		app: fiber.New(),
+		app:          fiber.New(),
+		chPublishing: make(chan publishing),
 	}
 
 	for _, opt := range options {

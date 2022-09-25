@@ -14,6 +14,8 @@ type Message struct {
 	Attempts  uint        `json:"attempts"`
 }
 
+type Messages []Message
+
 func NewMessage(body interface{}) Message {
 	return Message{
 		ID:        uuid.NewString(),
@@ -25,4 +27,16 @@ func NewMessage(body interface{}) Message {
 func (m *Message) ToJSON() []byte {
 	messageJson, _ := json.Marshal(m)
 	return messageJson
+}
+
+func (m Messages) Len() int {
+	return len(m)
+}
+
+func (m Messages) Less(i, j int) bool {
+	return m[i].Timestamp < m[j].Timestamp
+}
+
+func (m Messages) Swap(i, j int) {
+	m[i], m[j] = m[j], m[i]
 }

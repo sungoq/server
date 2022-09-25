@@ -21,7 +21,21 @@ func (api *API) Consume(c *websocket.Conn) {
 		for _, m := range messages {
 			mJson := m.ToJSON()
 			if err := c.WriteMessage(websocket.TextMessage, mJson); err != nil {
-				break
+				continue
+			}
+
+			api.service.Topic.DeleteMessage(topic, m.ID)
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case pub := <-api.chPublishing:
+				if topic == pub.Topic {
+					c.WriteMessage(websocket.TextMessage, pub.Message.ToJSON())
+					api.service.Topic.DeleteMessage(topic, pub.Message.ID)
+				}
 			}
 		}
 	}()

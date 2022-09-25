@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/dgraph-io/badger/v3"
 	"github.com/hadihammurabi/sungoq/model"
@@ -190,7 +191,7 @@ func (service TopicService) GetAllMessages(topic string) ([]model.Message, error
 		return nil, err
 	}
 
-	messages := make([]model.Message, 0)
+	messages := make(model.Messages, 0)
 
 	for _, mraw := range messagesRaw {
 		m := model.Message{}
@@ -201,5 +202,35 @@ func (service TopicService) GetAllMessages(topic string) ([]model.Message, error
 		messages = append(messages, m)
 	}
 
+	sort.Sort(messages)
+
 	return messages, nil
+}
+
+func (service TopicService) DeleteMessage(topic string, id string) error {
+	storage, err := badger.Open(
+		badger.DefaultOptions(
+			fmt.Sprintf("%s/%s", service.storageLocationPrefix, topic),
+		),
+	)
+	if err != nil {
+		return err
+	}
+
+	defer storage.Close()
+
+	err = storage.Update(func(txn *badger.Txn) error {
+		err := txn.Delete([]byte(id))
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
