@@ -2,6 +2,7 @@ package topic
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -70,6 +71,29 @@ func (service *TopicService) Create(name string) error {
 	}
 	defer serviceStorage.Close()
 
+	err = serviceStorage.Update(func(txn *badger.Txn) error {
+
+		_, err := txn.Get([]byte(name))
+
+		if err != nil {
+
+			if errors.Is(err, badger.ErrKeyNotFound) {
+				err = txn.Set([]byte(name), []byte(name))
+				if err != nil {
+					return err
+				}
+			}
+
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
 	storage, err := badger.Open(
 		badger.DefaultOptions(
 			fmt.Sprintf("%s/%s", service.storageLocationPrefix, name),
@@ -81,19 +105,6 @@ func (service *TopicService) Create(name string) error {
 	}
 
 	defer storage.Close()
-
-	err = serviceStorage.Update(func(txn *badger.Txn) error {
-		err := txn.Set([]byte(name), []byte(name))
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
